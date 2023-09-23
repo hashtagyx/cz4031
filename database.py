@@ -4,7 +4,8 @@ from datetime import datetime
 # Define constants and configurations
 BLOCK_SIZE = 400  # Block size in bytes
 DISK_CAPACITY = 500 * 1024 * 1024  # Disk capacity in bytes (500 MB)
-RECORD_SIZE = 64  # Size of a record in bytes
+RECORD_SIZE = 64  # Size of a record in bytes; 
+# todo: change to sys.getsizeof(record_1)) or sys.getsizeof(record_1.serialize())
 # todo: calculate size of N for size of a B+ tree node <= BLOCK_SIZE
 
 # Calculate the number of records that can fit in a block
@@ -14,14 +15,19 @@ RECORDS_PER_BLOCK = BLOCK_SIZE // RECORD_SIZE
 class Block:
     def __init__(self):
         self.data = []
-        # self.data = bytearray(BLOCK_SIZE)
+         # self.data = bytearray(BLOCK_SIZE)
+        self.deleted = False
+
+    # this block is now deleted
+    def delete(self):
+        self.deleted = True
+       
 # // (GAME_DATE_EST 	TEAM_ID_home	PTS_home	FG_PCT_home	FT_PCT_home	FG3_PCT_home	AST_home	REB_home	HOME_TEAM_WINS)
 # // Datetime, 5 integers, 3 floats/doubles e.g. 
 # // 22/12/2022	1610612740	126	0.484	0.926	0.382	25	46	1
 # Create a data structure to represent a record
 class Record:
     def __init__(self, GAME_DATE_EST, TEAM_ID_home, PTS_home, FG_PCT_home, FT_PCT_home, FG3_PCT_home, AST_home, REB_home, HOME_TEAM_WINS):
-        # self.GAME_DATE_EST = datetime.strptime(GAME_DATE_EST, "%d/%m/%Y") # datetime
         self.GAME_DATE_EST = GAME_DATE_EST
         self.TEAM_ID_home = TEAM_ID_home # int
         self.PTS_home = PTS_home # int
@@ -46,7 +52,7 @@ class DatabaseFile:
 
     def write_block(self, block):
         # Append a block to self.blocks, ensuring it doesn't exceed BLOCK_SIZE
-        if len(block.data) <= BLOCK_SIZE:
+        if sys.getsizeof(block) <= BLOCK_SIZE:
             self.blocks.append(block)
         else:
             raise ValueError("Block size exceeds BLOCK_SIZE")
@@ -60,26 +66,17 @@ class DatabaseFile:
     
     # leaves a hole in the block's records
     def delete_record(self, block_index, record_index):
-        if block_index < 0 or block_index >= len(self.blocks):
-            return  # Invalid block_index
+        if block_index < 0 or block_index >= len(self.blocks) or self.blocks[block_index].deleted:
+            print('delete_record: Invalid block_index or block is already deleted')
+            return  # Invalid block_index or block is already deleted
         if record_index < 0 or record_index >= len(self.blocks[block_index]):
+            print('delete_record: Invalid record_index')
             return  # Invalid record_index
         self.blocks[block_index][record_index] = None
 
     # replaces the entire record with a hole
     def delete_block(self, block_index):
         if block_index < 0 or block_index >= len(self.blocks):
+            print('delete_block: Invalid block_index')
             return  # Invalid block_index
-        self.blocks[block_index] = None
-
-# Initialize the database file
-db_file = DatabaseFile()
-record_1 = Record("22/12/2022", 1610612740, 126, 0.484, 0.926, 0.382, 25, 46, 1)
-print(sys.getsizeof(record_1))
-print(sys.getsizeof(record_1.serialize()))
-
-
-record_2 = Record("22/12/2021", 1610612740, 126, 0.4, 0.926, 0.382, 25, 46, 1)
-print(sys.getsizeof(record_2))
-print(sys.getsizeof(record_2.serialize()))
-# todo: replace with actual data rows
+        self.blocks[block_index].delete()
