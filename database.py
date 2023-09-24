@@ -4,7 +4,8 @@ from datetime import datetime
 # Define constants and configurations
 BLOCK_SIZE = 400  # Block size in bytes
 DISK_CAPACITY = 500 * 1024 * 1024  # Disk capacity in bytes (500 MB)
-RECORD_SIZE = 64  # Size of a record in bytes; 
+RECORD_SIZE = 5*8 + 3*8 + 8 #(5 ints, 8 bytes) + (3 floats, 8 bytes) + (size of datetime object)
+# RECORD_SIZE = 64  # Size of a record in bytes; 
 # todo: change to sys.getsizeof(record_1)) or sys.getsizeof(record_1.serialize())
 # todo: calculate size of N for size of a B+ tree node <= BLOCK_SIZE
 
