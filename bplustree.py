@@ -1,5 +1,7 @@
+from constant import *
+
 # Define constants and configurations for the B+ tree
-BLOCK_SIZE = 400  # Block size in bytes
+# BLOCK_SIZE = 400  # Block size in bytes
 NODE_SIZE = BLOCK_SIZE  # Size of a B+ tree node is equal to block size
 # N =  # todo: define N
 
