@@ -3,7 +3,8 @@ import sys
 # Define constants and configurations
 BLOCK_SIZE = 400  # Block size in bytes
 DISK_CAPACITY = 500 * 1024 * 1024  # Disk capacity in bytes (500 MB)
-RECORD_SIZE = 64  # Size of a record in bytes
+RECORD_SIZE = 5*8 + 3*8 + 8 #(5 ints, 8 bytes) + (3 floats, 8 bytes) + (size of datetime object)
+# RECORD_SIZE = 64  # Size of a record in bytes
 # Datetime, 5 integers, 3 floats/doubles
 # !!! todo: find actual size of a record, using https://stackoverflow.com/a/33631772
 # pympler library asizeof or sys.getsizeof()

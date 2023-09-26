@@ -1,12 +1,8 @@
 import sys
+import csv
 from datetime import datetime
+from constant import *
 
-# Define constants and configurations
-BLOCK_SIZE = 400  # Block size in bytes
-DISK_CAPACITY = 500 * 1024 * 1024  # Disk capacity in bytes (500 MB)
-RECORD_SIZE = 64  # Size of a record in bytes; 
-# todo: change to sys.getsizeof(record_1)) or sys.getsizeof(record_1.serialize())
-# todo: calculate size of N for size of a B+ tree node <= BLOCK_SIZE
 
 # Calculate the number of records that can fit in a block
 RECORDS_PER_BLOCK = BLOCK_SIZE // RECORD_SIZE
@@ -49,7 +45,43 @@ class DatabaseFile:
         self.blocks = []  # List to store blocks
         self.num_records = 0  # Total number of records
         self.current_block = None  # Current block for writing
+    
+    def import_file(self, file_path):
+        with open(file_path, "r", encoding="utf8") as games_file:
+            games_reader = csv.DictReader(games_file, delimiter="\t")
+            record_count = 0
+            block = Block()
+            for game in games_reader:
+                game_date_est = game["GAME_DATE_EST"]
+                team_id_home = game["TEAM_ID_home"]
+                pts_home = game["PTS_home"]
+                fg_pct_home = game["FG_PCT_home"]
+                ft_pct_home = game["FT_PCT_home"]
+                fg3_pct_home = game["FG3_PCT_home"]
+                ast_home = game["AST_home"]
+                reb_home = game["REB_home"]
+                home_team_wins = game["HOME_TEAM_WINS"]
 
+                #ignore incomplete records
+                if not (bool(game_date_est) and bool(team_id_home) and bool(pts_home) and \
+                        bool(fg_pct_home) and bool(ft_pct_home) and bool(fg3_pct_home) and \
+                        bool(ast_home) and bool(reb_home) and bool(home_team_wins)):
+                    continue
+
+                if record_count >= RECORDS_PER_BLOCK:
+                    self.blocks.append(block) # append block to databasefile
+                    self.num_records += RECORDS_PER_BLOCK
+                    block = Block() #create new block
+                    record_count = 0
+                record = Record(game_date_est, int(team_id_home), int(pts_home), \
+                                float(fg_pct_home), float(ft_pct_home), float(fg3_pct_home), \
+                                int(ast_home), int(reb_home), int(home_team_wins))
+                record_count += 1
+                block.data.append(record)
+            
+            self.blocks.append(block)
+            self.num_records += len(block.data)
+    
     def write_block(self, block):
         # Append a block to self.blocks, ensuring it doesn't exceed BLOCK_SIZE
         if sys.getsizeof(block) <= BLOCK_SIZE:
