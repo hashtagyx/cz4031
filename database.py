@@ -11,7 +11,6 @@ RECORDS_PER_BLOCK = BLOCK_SIZE // RECORD_SIZE
 class Block:
     def __init__(self):
         self.data = []
-         # self.data = bytearray(BLOCK_SIZE)
         self.deleted = False
 
     # this block is now deleted
