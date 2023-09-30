@@ -1,4 +1,6 @@
 from constant import *
+import math
+from bisect import bisect_right
 
 # Define constants and configurations for the B+ tree
 # BLOCK_SIZE = 400  # Block size in bytes
@@ -9,67 +11,39 @@ class BPlusTreeNode:
     def __init__(self, parent=None, is_leaf=False):
         self.keys = []  # List of keys
         self.children = []  # List of indices to records/other TreeNodes
-        # todo: design of indices: must contain index of DatabaseFile.blocks, and index of record within each block
         self.is_leaf = is_leaf  # Flag to indicate whether it's a leaf node
-        self.parent = parent
+        self.parent = parent # Pointer to parent node
     
-    # this defines the behavior of what happens when BPlusTreeNode[key] is called
-    def __getitem__(self, key):
-        return self.children[self.index(key)]
-    
-    # !!! for Leaf
-    # def __setitem__(self, key, value):
-    #     i = self.index(key)
-    #     if key not in self.keys:
-    #         self.keys[i:i] = [key]
-    #         self.children[i:i] = [value]
-    #     else:
-    #         self.children[i - 1] = value
-    
-    # returns index of where the child (left) corresponding to the key is
+    # returns index of the child corresponding to the key we are searching for
     def index(self, key):
-        for i, item in enumerate(self.keys):
-            if key < item:
-                return i
-        return len(self.keys)
-    # !!!
+        return bisect_right(self.keys, key)
+        
+    # splits a node up into two nodes once it is greater than size N
+    # returns key to be put in parent node, and a list of the two split nodes
     def split(self):
-        mid = len(self.keys) // 2
-        # left = BPlusTreeNode(self.parent, self.is_leaf)
+        # ceiling division of len(self.keys) / 2
+        mid = math.ceil(len(self.keys) / 2)
+
         right = BPlusTreeNode(self.parent, self.is_leaf)
 
+        # split leaf node
         if self.is_leaf:
-            # !!! splits
-            # left.keys, left.children = self.keys[:mid], self.children[:mid]
-            # self.keys, self.children = self.keys[mid:], self.children[mid:]
-
-            # left.values.append(self) # to append the next pointer
             right.keys, right.children = self.keys[mid:], self.children[mid:]
             self.keys, self.children = self.keys[:mid], self.children[:mid]
 
-            #
-            if self.children[-1] is BPlusTreeNode:
-                right.children.append(self.children[-1])
-                self.children[-1] = right
-            else:
-                self.children.append(right)
-            #
+            # add right node as self's next pointer
+            self.children.append(right)
 
-            # return self.keys[0], [left, self]
             return right.keys[0], [self, right]
+        
+        # split internal node
         else:
-            # left.keys, left.children = self.keys[:mid], self.children[:mid + 1]
-            # for child in left.children:
-            #     child.parent = left
-
-            # key = self.keys[mid]
-            # self.keys, self.children = self.keys[mid + 1:], self.children[mid + 1:]
-
-            # return key, [left, self]
             right.keys, right.children = self.keys[mid + 1:], self.children[mid + 1:]
+            # assign new parent to existing children
             for child in right.children:
                 child.parent = right
 
+            # this key is to be returned for insertion into a parent node (parent of self and right)
             key = self.keys[mid]
             self.keys, self.children = self.keys[:mid], self.children[:mid + 1]
 
@@ -81,47 +55,37 @@ class BPlusTree:
         self.root = BPlusTreeNode(is_leaf=True)  # Initialize with a root leaf node
 
     def insert(self, key, value):
-        # Insert a key-value pair into the B+ tree
-        # Implement insertion algorithm
-
         # find the leaf node to insert in the key, value pair
         leaf_node = self.find(key)
 
-        # if key is already in the leaf node, append the value (block_index, record_index_within_block)
+        # if key is already in the leaf node, append the value [block_index, record_index_within_block]
         # to the children list
         if key in leaf_node.keys:
             index = leaf_node.keys.index(key)
             leaf_node.children[index].append(value)
-        else:
-            # !!!
-            self.__setitem__(key, value, leaf_node)
-    
-    # this defines what happens when we call BPlusTree[i]
-    def __setitem__(self, key, value, leaf_node=None):
-        if not leaf_node:
-            leaf_node = self.find(key)
+            return
 
-        # !!! adds a list of length 1 with value (block_index, record_index_within_block)
-        # leaf_node[key] = [value]
-        if leaf_node.is_leaf:
-            i = leaf_node.index(key)
-            if key not in leaf_node.keys:
-                leaf_node.keys[i:i] = [key]
-                leaf_node.children[i:i] = [value]
-            else:
-                leaf_node.children[i - 1].append(value)
-        else:
-            i = leaf_node.index(key)
-            leaf_node.keys[i:i] = [key]
-            leaf_node.children.pop(i)
-            leaf_node.children[i:i] = value
+        # position to insert new key in old node
+        i = leaf_node.index(key)
 
+        if key not in leaf_node.keys:
+            leaf_node.keys.insert(i, key)
+            leaf_node.children.insert(i, [value])
+        # since key is already in leaf_node.keys, i == index of key + 1
+        # due to bisect_right. we just append the value into children at index i - 1
+        else:
+            leaf_node.children[i-1].append(value)
+
+        # if num keys > N (max keys per node)
         if len(leaf_node.keys) > N:
-            # !!!!
-            self.insert_index(*leaf_node.split())
+            insert_key, insert_nodes = leaf_node.split()
+            self.insert_index(insert_key, insert_nodes)
     
+    # update children's parent node to point to children
     def insert_index(self, key, children):
-        # !!!
+        left_child = children[0]
+        right_child = children[1]
+
         parent = children[1].parent
         if not parent:
             self.root = BPlusTreeNode()
@@ -133,13 +97,16 @@ class BPlusTree:
         
         # BPlusTreeNode's __setitem__ // Node's setitem
         i = parent.index(key)
-        parent.keys[i:i] = [key]
-        parent.children.pop(i)
-        parent.children[i:i] = children # parent.children.insert(i, children)
+        parent.keys.insert(i, key)
+        
+        # parent.children.pop(i)
+        # parent.children[i:i] = children # parent.children.insert(i, children)
+        parent.children.insert(i+1, right_child)
         # parent[key] = children
         
         if len(parent.keys) > N:
-            self.insert_index(*parent.split())
+            insert_key, insert_nodes = parent.split()
+            self.insert_index(insert_key, insert_nodes)
 
     # Returns the leaf node where the key should be at
     def find(self, key):
@@ -147,7 +114,7 @@ class BPlusTree:
 
         while not node.is_leaf:
             # !!!
-            node = node[key]
+            node = node.children[node.index(key)]
         return node
     
     def show(self, node=None, file=None, _prefix="", _last=True):
@@ -156,9 +123,9 @@ class BPlusTree:
         if node is None:
             node = self.root
         # print('2', type(node))
-        print('cur', node)
+        # print('cur', node) 
         print(_prefix, "`- " if _last else "|- ", node.keys, sep="", file=file)
-        print('children', node.children)
+        # print('children', node.children)
         _prefix += "   " if _last else "|  "
 
         if not node.is_leaf:
@@ -166,6 +133,8 @@ class BPlusTree:
             for i, child in enumerate(node.children):
                 _last = (i == len(node.children) - 1)
                 self.show(child, file, _prefix, _last)
+        # else:
+        #     print('children', node.children)
 
     def search(self, key):
         # Search for a key in the B+ tree and return associated values

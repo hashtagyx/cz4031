@@ -11,16 +11,6 @@ RECORDS_PER_BLOCK = BLOCK_SIZE // RECORD_SIZE
 class Block:
     def __init__(self):
         self.data = []
-        self.deleted = False
-
-    # this block is now deleted
-    def delete(self):
-        self.deleted = True
-       
-# // (GAME_DATE_EST 	TEAM_ID_home	PTS_home	FG_PCT_home	FT_PCT_home	FG3_PCT_home	AST_home	REB_home	HOME_TEAM_WINS)
-# // Datetime, 5 integers, 3 floats/doubles e.g. 
-# // 22/12/2022	1610612740	126	0.484	0.926	0.382	25	46	1
-# Create a data structure to represent a record
 class Record:
     def __init__(self, GAME_DATE_EST, TEAM_ID_home, PTS_home, FG_PCT_home, FT_PCT_home, FG3_PCT_home, AST_home, REB_home, HOME_TEAM_WINS):
         self.GAME_DATE_EST = GAME_DATE_EST
@@ -81,33 +71,9 @@ class DatabaseFile:
             self.blocks.append(block)
             self.num_records += len(block.data)
     
-    def write_block(self, block):
-        # Append a block to self.blocks, ensuring it doesn't exceed BLOCK_SIZE
-        if sys.getsizeof(block) <= BLOCK_SIZE:
-            self.blocks.append(block)
-        else:
-            raise ValueError("Block size exceeds BLOCK_SIZE")
-    
     def read_block(self, block_index):
         # Read a block from self.blocks by its index
         if block_index < 0 or block_index >= len(self.blocks):
             return None  # Invalid block_index
 
         return self.blocks[block_index]
-    
-    # leaves a hole in the block's records
-    def delete_record(self, block_index, record_index):
-        if block_index < 0 or block_index >= len(self.blocks) or self.blocks[block_index].deleted:
-            print('delete_record: Invalid block_index or block is already deleted')
-            return  # Invalid block_index or block is already deleted
-        if record_index < 0 or record_index >= len(self.blocks[block_index]):
-            print('delete_record: Invalid record_index')
-            return  # Invalid record_index
-        self.blocks[block_index][record_index] = None
-
-    # replaces the entire record with a hole
-    def delete_block(self, block_index):
-        if block_index < 0 or block_index >= len(self.blocks):
-            print('delete_block: Invalid block_index')
-            return  # Invalid block_index
-        self.blocks[block_index].delete()
