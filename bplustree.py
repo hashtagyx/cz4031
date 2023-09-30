@@ -34,7 +34,7 @@ class BPlusTreeNode:
             # add right node as self's next pointer
             self.children.append(right)
 
-            return right.keys[0], [self, right]
+            return right.keys[0], self, right
         
         # split internal node
         else:
@@ -47,7 +47,7 @@ class BPlusTreeNode:
             key = self.keys[mid]
             self.keys, self.children = self.keys[:mid], self.children[:mid + 1]
 
-            return key, [self, right]
+            return key, self, right
 
 # Create a data structure for the B+ tree
 class BPlusTree:
@@ -78,21 +78,21 @@ class BPlusTree:
 
         # if num keys > N (max keys per node)
         if len(leaf_node.keys) > N:
-            insert_key, insert_nodes = leaf_node.split()
-            self.insert_index(insert_key, insert_nodes)
+            insert_key, left_node, right_node = leaf_node.split()
+            self.insert_index(insert_key, left_node, right_node)
     
     # update children's parent node to point to children
-    def insert_index(self, key, children):
-        left_child = children[0]
-        right_child = children[1]
+    def insert_index(self, key, left_child, right_child):
+        # left_child = children[0]
+        # right_child = children[1]
 
-        parent = children[1].parent
+        parent = right_child.parent
         if not parent:
             self.root = BPlusTreeNode()
-            children[0].parent = self.root
-            children[1].parent = self.root
+            left_child.parent = self.root
+            right_child.parent = self.root
             self.root.keys = [key]
-            self.root.children = children
+            self.root.children = [left_child, right_child]
             return
         
         # BPlusTreeNode's __setitem__ // Node's setitem
@@ -105,8 +105,8 @@ class BPlusTree:
         # parent[key] = children
         
         if len(parent.keys) > N:
-            insert_key, insert_nodes = parent.split()
-            self.insert_index(insert_key, insert_nodes)
+            insert_key, left_node, right_node = parent.split()
+            self.insert_index(insert_key, left_node, right_node)
 
     # Returns the leaf node where the key should be at
     def find(self, key):
