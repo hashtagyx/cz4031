@@ -83,27 +83,27 @@ class BPlusTree:
     
     # update children's parent node to point to children
     def insert_index(self, key, left_child, right_child):
-        # left_child = children[0]
-        # right_child = children[1]
+        parent = left_child.parent
 
-        parent = right_child.parent
+        # create a new root if parent doesn't exist
         if not parent:
             self.root = BPlusTreeNode()
+            # assign children to new root
             left_child.parent = self.root
             right_child.parent = self.root
+            # new key (bound) for the two children
             self.root.keys = [key]
+            # reference to children from the root
             self.root.children = [left_child, right_child]
             return
         
-        # BPlusTreeNode's __setitem__ // Node's setitem
+        # insert new key (index i) and right_child (index i+1) to parent node
         i = parent.index(key)
         parent.keys.insert(i, key)
-        
-        # parent.children.pop(i)
-        # parent.children[i:i] = children # parent.children.insert(i, children)
         parent.children.insert(i+1, right_child)
         # parent[key] = children
         
+        # recursively split and insert if num keys > N (max keys per node)
         if len(parent.keys) > N:
             insert_key, left_node, right_node = parent.split()
             self.insert_index(insert_key, left_node, right_node)
@@ -111,9 +111,7 @@ class BPlusTree:
     # Returns the leaf node where the key should be at
     def find(self, key):
         node = self.root
-
         while not node.is_leaf:
-            # !!!
             node = node.children[node.index(key)]
         return node
     
