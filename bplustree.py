@@ -16,7 +16,12 @@ class BPlusTreeNode:
     
     # returns index of the child corresponding to the key we are searching for
     def index(self, key):
-        return bisect_right(self.keys, key)
+        # return bisect_right(self.keys, key)
+        for i, item in enumerate(self.keys):
+            if key < item:
+                return i
+
+        return len(self.keys)
         
     # splits a node up into two nodes once it is greater than size N
     # returns key to be put in parent node, and a list of the two split nodes
@@ -48,6 +53,131 @@ class BPlusTreeNode:
             self.keys, self.children = self.keys[:mid], self.children[:mid + 1]
 
             return key, self, right
+    
+    def fusion(self, min_key):
+        # this leaf node definitely has a parent (i.e. not a leaf node that is the root node)
+        print('node.keys in fusion:', self.keys)
+        # print('node is leaf: ', self.is_leaf)
+        if self.is_leaf:
+            print('----------------------------')
+            print(isinstance(self.children[-1], BPlusTreeNode))
+            if isinstance(self.children[-1], BPlusTreeNode):
+                print(self.children[-1].parent == self.parent)
+                print(self.children[-1].parent, self.parent)
+                print(self.children[-1].keys, self.parent.keys)
+                print(self.children[-1].keys)
+            print('----------------------------')
+            
+            if isinstance(self.children[-1], BPlusTreeNode) and self.children[-1].parent == self.parent:
+                next_node = self.children[-1]
+                # print('curr node', self)
+                # print('curr node children', self.children)
+                # print('next_node', next_node)
+                # print('next_node children', next_node.children)
+                # print('next_node keys', next_node.keys)
+                next_node.keys[0:0] = self.keys
+
+                # print('next_node keys after insert', next_node.keys)
+                # print(next_node.keys)
+                # remove the pointer in left child before concatenating to the front of child node (left child join to the RIGHT CHILD)
+                next_node.children[0:0] = self.children[:-1]
+                print('next_node children', next_node.children)
+                
+                index = self.parent.index(self.keys[0])
+                # index = self.parent.index(min_key)
+
+                # make the prev node point to the fused node on the right (if there exists a prev node)
+                if index >= 1:
+                    print('Here')
+                    prev_node = self.parent.children[index - 1]
+                    prev_node.children[-1] = next_node
+
+                print('new right leaf' , next_node.keys)
+            # if self.next is not None and self.next.parent == self.parent:
+                # self.next.keys[0:0] = self.keys
+                # self.next.children[0:0] = self.children
+            # there are no neighbouring nodes on the right i.e. fuse left
+            else:
+                # index = self.parent.index(self.keys[0])
+                prev = self.parent.children[-2]
+                
+                prev.keys += self.keys
+                prev.children = prev.children[:-1]
+                prev.children += self.children
+
+                print('new left leaf' , prev.keys)
+            
+                # self.prev.keys += self.keys
+                # self.prev.children += self.children
+                
+        # if internal node/root node
+        else:
+            print('else in fusion', self.keys)
+            # index = self.parent.index(self.keys[0])
+            index = self.parent.index(min_key)
+            # merge this node with the next node
+            if index < len(self.parent.keys):
+                # merge with the node on the right
+                next_node = self.parent.children[index + 1]
+                next_node.keys[0:0] = self.keys + [self.parent.keys[index]]
+                for child in self.children:
+                    child.parent = next_node
+                next_node.children[0:0] = self.children
+            else:  # If self is the last node, merge with prev
+                prev = self.parent.children[-2]
+                prev.keys += [self.parent.keys[-1]] + self.keys
+                for child in self.children:
+                    child.parent = prev
+                prev.children += self.children
+
+    def borrow_key(self, minimum, min_key):
+        # if len(self.keys) == 0:
+        #     return False
+        # index = self.parent.index(self.keys[0])
+        index = self.parent.index(min_key)
+        if self.is_leaf:
+            if index < len(self.parent.keys) and len(self.children[-1].keys) > minimum:
+                next_node = self.children[-1]
+                self.keys += [next_node.keys.pop(0)]
+                # self.children += [next_node.children.pop(0)]
+                # self.children = self.children[:-1] + [next_node.children.pop(0)] + [self.children[-1]]
+                self.children.insert(-2, next_node.children.pop(0))
+                self.parent.keys[index] = next_node.keys[0]
+                return True
+            elif index != 0 and len(self.parent.children[index - 1].keys) > minimum:
+                # if index >= 1:
+                #     prev_node = self.parent.children[index - 1]
+                prev_node = self.parent.children[index - 1]
+                self.keys[0:0] = [prev_node.keys.pop()]
+                self.children[0:0] = [prev_node.children.pop(-2)]
+                # self.keys[0] is now prev_node.keys.pop()
+                self.parent.keys[index - 1] = self.keys[0]
+                return True
+
+            return False
+        else:
+            if index < len(self.parent.keys):
+                next_node = self.parent.children[index + 1]
+                if len(next_node.keys) > minimum:
+                    self.keys += [self.parent.keys[index]]
+
+                    borrow_node = next_node.children.pop(0)
+                    borrow_node.parent = self
+                    self.children += [borrow_node]
+                    self.parent.keys[index] = next_node.keys.pop(0)
+                    return True
+            elif index != 0:
+                prev = self.parent.children[index - 1]
+                if len(prev.keys) > minimum:
+                    self.keys[0:0] = [self.parent.keys[index - 1]]
+
+                    borrow_node = prev.children.pop()
+                    borrow_node.parent = self
+                    self.children[0:0] = [borrow_node]
+                    self.parent.keys[index - 1] = prev.keys.pop()
+                    return True
+
+            return False
 
 # Create a data structure for the B+ tree
 class BPlusTree:
@@ -61,20 +191,15 @@ class BPlusTree:
         # if key is already in the leaf node, append the value [block_index, record_index_within_block]
         # to the children list
         if key in leaf_node.keys:
+            # this is list.index NOT node.index
             index = leaf_node.keys.index(key)
             leaf_node.children[index].append(value)
-            return
-
-        # position to insert new key in old node
-        i = leaf_node.index(key)
-
-        if key not in leaf_node.keys:
+            return      
+        else:
+            # position to insert new key in old node
+            i = leaf_node.index(key)
             leaf_node.keys.insert(i, key)
             leaf_node.children.insert(i, [value])
-        # since key is already in leaf_node.keys, i == index of key + 1
-        # due to bisect_right. we just append the value into children at index i - 1
-        else:
-            leaf_node.children[i-1].append(value)
 
         # if num keys > N (max keys per node)
         if len(leaf_node.keys) > N:
@@ -121,9 +246,12 @@ class BPlusTree:
         if node is None:
             node = self.root
         # print('2', type(node))
-        # print('cur', node) 
+        
+        print('cur', node) 
         print(_prefix, "`- " if _last else "|- ", node.keys, sep="", file=file)
-        # print('children', node.children)
+        print('children', node.children)
+        print('parent', node.parent)
+        print('==================================================')
         _prefix += "   " if _last else "|  "
 
         if not node.is_leaf:
@@ -136,12 +264,70 @@ class BPlusTree:
 
     def search(self, key):
         # Search for a key in the B+ tree and return associated values
-        # Implement search algorithm
+        # Implement search algorithm``
         pass
 
-    def delete(self, key):
-        # Delete the key in the B+ tree and the array that the last layer points to
-        pass
+    # def delete(self, key):
+    #     # Delete the key in the B+ tree and the array that the last layer points to
+        
+    def delete(self, key, node=None):
+        if node is None:
+            node = self.find(key)
+        min_key = node.keys[0]
+        # del node[key]
+        print("before del node.keys, node.children, key:", node.keys, node.children, key)
+        i = node.keys.index(key)
+        # change to list delete
+
+        # deleting the leaf node clearing the pointer
+        del node.keys[i]
+        del node.children[i]
+
+        print("after del node.keys, node.children, key:", node.keys, node.children, key)
+
+        # perform fusion 
+        if len(node.keys) < MIN_LEAF:
+            # special case leaf node is at the root level
+            if node == self.root:
+                if len(self.root.keys) == 0 and len(self.root.children) > 0:
+                    self.root = self.root.children[0]
+                    self.root.parent = None
+                return
+
+            # borrow key from neighbours
+            elif not node.borrow_key(MIN_LEAF, min_key):
+                print(f"CANT BORROW FOR {key}")
+                node.fusion(min_key)
+                # fused_node = node.fusion(min_key)
+                # remove internal node with key
+                self.delete_internal_node(key, node.parent)
+                # self.delete_internal_node(key, node.parent, fused_node)
+                
+    def delete_internal_node(self, key, node):
+        # del node[key] for Node
+        print("DELETING INTERNAL NODE")
+        min_key = node.keys[0]
+        i = node.index(key)
+        del node.children[i]
+        print('i', i, 'len of node keys', len(node.keys))
+        if i < len(node.keys):
+            del node.keys[i]
+        else:
+            del node.keys[i - 1]
+        
+        if len(node.keys) < MIN_INTERNAL:
+            if node == self.root:
+                if len(self.root.keys) == 0 and len(self.root.children) > 0:
+                    self.root = self.root.children[0]
+                    self.root.parent = None
+                    # insert fused_node into self.root.keys and self.root.children
+                    # change fused_node's parent
+                return
+
+            elif not node.borrow_key(MIN_INTERNAL, min_key):
+                node.fusion(min_key)
+                self.delete_internal_node(key, node.parent)
+                # self.delete_internal_node(key, node.parent, fused_node)
 
 # # Initialize the B+ tree
 # bplus_tree = BPlusTree()
