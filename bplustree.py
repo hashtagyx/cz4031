@@ -2,11 +2,6 @@ from constant import *
 import math
 from bisect import bisect_right
 
-# Define constants and configurations for the B+ tree
-# BLOCK_SIZE = 400  # Block size in bytes
-NODE_SIZE = BLOCK_SIZE  # Size of a B+ tree node is equal to block size
-
-# Create a data structure for a B+ tree node
 class BPlusTreeNode:
     def __init__(self, parent=None, is_leaf=False):
         self.keys = []  # List of keys
@@ -16,7 +11,12 @@ class BPlusTreeNode:
     
     # returns index of the child corresponding to the key we are searching for
     def index(self, key):
-        return bisect_right(self.keys, key)
+        # return bisect_right(self.keys, key)
+        for i, item in enumerate(self.keys):
+            if key < item:
+                return i
+
+        return len(self.keys)
         
     # splits a node up into two nodes once it is greater than size N
     # returns key to be put in parent node, and a list of the two split nodes
@@ -49,6 +49,8 @@ class BPlusTreeNode:
 
             return key, self, right
 
+
+
 # Create a data structure for the B+ tree
 class BPlusTree:
     def __init__(self):
@@ -61,20 +63,15 @@ class BPlusTree:
         # if key is already in the leaf node, append the value [block_index, record_index_within_block]
         # to the children list
         if key in leaf_node.keys:
+            # this is list.index NOT node.index
             index = leaf_node.keys.index(key)
             leaf_node.children[index].append(value)
-            return
-
-        # position to insert new key in old node
-        i = leaf_node.index(key)
-
-        if key not in leaf_node.keys:
+            return      
+        else:
+            # position to insert new key in old node
+            i = leaf_node.index(key)
             leaf_node.keys.insert(i, key)
             leaf_node.children.insert(i, [value])
-        # since key is already in leaf_node.keys, i == index of key + 1
-        # due to bisect_right. we just append the value into children at index i - 1
-        else:
-            leaf_node.children[i-1].append(value)
 
         # if num keys > N (max keys per node)
         if len(leaf_node.keys) > N:
@@ -121,9 +118,12 @@ class BPlusTree:
         if node is None:
             node = self.root
         # print('2', type(node))
+        
         # print('cur', node) 
         print(_prefix, "`- " if _last else "|- ", node.keys, sep="", file=file)
         # print('children', node.children)
+        # print('parent', node.parent)
+        # print('==================================================')
         _prefix += "   " if _last else "|  "
 
         if not node.is_leaf:
@@ -136,11 +136,13 @@ class BPlusTree:
 
     def search(self, key):
         # Search for a key in the B+ tree and return associated values
-        # Implement search algorithm
+        # Implement search algorithm``
         pass
 
-    def delete(self, key):
-        # Delete the key in the B+ tree and the array that the last layer points to
+    # def delete(self, key):
+    #     # Delete the key in the B+ tree and the array that the last layer points to
+        
+    def delete(self, key, node=None):
         pass
 
 # # Initialize the B+ tree
