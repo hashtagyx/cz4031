@@ -33,7 +33,8 @@ class BPlusTreeNode:
             self.keys, self.children = self.keys[:mid], self.children[:mid]
 
             # add right node as self's next pointer
-            self.children.append(right)
+            right.next = self.next
+            self.next = right
 
             return right.keys[0], self, right
         
