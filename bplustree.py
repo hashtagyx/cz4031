@@ -8,6 +8,7 @@ class BPlusTreeNode:
         self.children = []  # List of indices to records/other TreeNodes
         self.is_leaf = is_leaf  # Flag to indicate whether it's a leaf node
         self.parent = parent # Pointer to parent node
+        self.next = None
     
     # returns index of the child corresponding to the key we are searching for
     def index(self, key):
@@ -134,10 +135,42 @@ class BPlusTree:
         # else:
         #     print('children', node.children)
 
-    def search(self, key):
+    def search(self, key, key2=None):
         # Search for a key in the B+ tree and return associated values
         # Implement search algorithm``
-        pass
+        c_idx = 0 # Additional no. index nodes accessed on top of tree height
+        result = [] # List of record pointers
+
+        # Find pointers for all records where key = query key
+        leaf_node = self.find(key)
+        index = leaf_node.keys.index(key)
+        result += leaf_node.children[index]
+
+        # Range query
+        if key2 is not None:
+            found = False 
+
+            while key <= key2:
+                # Append results
+                if found:
+                    result += leaf_node.children[index]
+
+                # Locate next key
+                index += 1
+                if index < len(leaf_node.keys): #Next key is in the same block
+                    key = leaf_node.keys[index]
+                    found = True
+                elif leaf_node.next is not None:
+                    leaf_node = leaf_node.next #Next key is in the neighbouring block
+                    index = 0
+                    key = leaf_node.keys[index]
+                    found = True
+                    c_idx += 1
+                else: #Reach end of leaf nodes before upper bound of range query is hit
+                    break
+                
+
+        return result, c_idx
 
     # def delete(self, key):
     #     # Delete the key in the B+ tree and the array that the last layer points to
