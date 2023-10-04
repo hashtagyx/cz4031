@@ -363,7 +363,7 @@ class BPlusTree:
             # and curNode.keys[0] note that curNode.keys[0] is what leftSibling.keys[-1] used to be, 
             # but we need to change this value to the smallest_in_subtree(curNode.children[1])
 
-            i = bisect_right(parent.keys, curNode.children[1].key[0])
+            i = bisect_right(parent.keys, curNode.children[1].keys[0])
             # change the key used to index curNode in parent
             parent.keys[i-1] = self.smallestInSubtree(curNode)
             # change the key used to index curNode.children[1] in curNode
