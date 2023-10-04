@@ -353,20 +353,22 @@
 #     tree.show()
 
 # TEST CASE 10: EXPERIMENT 5
-bplustree = BPlusTree()
+# OUTPUT IN ECHO.TXT
+# bplustree = BPlusTree()
 
-toDel = set()
-for block_idx, block in enumerate(db_file.blocks):
-    for record_idx, record in enumerate(block.data):
-        # bplustree[record.FG_PCT_home] = [block_idx, record_idx]
-        if record.FG_PCT_home <= 0.35:
-            toDel.add(record.FG_PCT_home)
-        bplustree.insert(record.FG_PCT_home, [block_idx, record_idx])
-        # print(block_idx, record_idx, record.FG_PCT_home)
-bplustree.show()
+# toDel = set()
+# for block_idx, block in enumerate(db_file.blocks):
+#     for record_idx, record in enumerate(block.data):
+#         if record.FG_PCT_home <= 0.35:
+#             toDel.add(record.FG_PCT_home)
+#         bplustree.insert(record.FG_PCT_home, [block_idx, record_idx])
+# print("BEFORE:")
+# bplustree.show()
 
-toDel = sorted(list(toDel))
-for i, val in enumerate(toDel):
-    print(f"DELETE {val}")
-    bplustree.delete(val)
-bplustree.show()
+# toDel = sorted(list(toDel))
+# for i, val in enumerate(toDel):
+#     # print(f"DELETE {val}")
+#     bplustree.delete(val)
+# print("AFTER:")
+# bplustree.show()
+# print(f"deleted items: {toDel}")
