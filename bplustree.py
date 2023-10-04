@@ -122,7 +122,7 @@ class BPlusTree:
             node = self.root
         # print('2', type(node))
         
-        print('cur', node) 
+        # print('cur', node) 
         print(_prefix, "`- " if _last else "|- ", node.keys, sep="", file=file)
         # print('children', node.children)
         # print('parent', node.parent)
@@ -134,9 +134,9 @@ class BPlusTree:
             for i, child in enumerate(node.children):
                 _last = (i == len(node.children) - 1)
                 self.show(child, file, _prefix, _last)
-        else:
+        # else:
             # print('children', node.children)
-            print('next', node.next)
+            # print('next', node.next)
 
     def search(self, key, key2=None):
         # Search for a key in the B+ tree and return associated values
@@ -215,26 +215,26 @@ class BPlusTree:
         # case 1: we can remove the key from the tree directly. update the internal nodes if we deleted a key used in an internal node.
         if len(leaf.keys) >= MIN_LEAF:
             newMinInLeaf = leaf.keys[0]
-            print("CASE 1: BEFORE UPDATE INTERNAL NODES")
-            self.show()
+            # print("CASE 1: BEFORE UPDATE INTERNAL NODES")
+            # self.show()
             self.updateInternalNodes(path, popped, newMinInLeaf)
-            print("=======================================")
-            print("CASE 1: AFTER UPDATE INTERNAL NODES")
-            self.show()
+            # print("=======================================")
+            # print("CASE 1: AFTER UPDATE INTERNAL NODES")
+            # self.show()
             return
         # case 2: we try to borrow a key from a neighbour. if it's successful, we are done
         elif self.borrowKey(path, popped):
-            print("BORROWED SUCCESSFULLY")
+            # print("BORROWED SUCCESSFULLY")
             return
         
         rKey, rChild, mergedNode = self.mergeLeaf(path, popped)
         if len(path[-2].keys) < MIN_INTERNAL:
-            # self.fixInternal(path[:-1], rKey)
-            pass
+            self.fixInternal(path[:-1], rKey)
         newPath = self.findPath(mergedNode.keys[0])
         self.updateInternalNodes(newPath, popped, mergedNode.keys[0])
         return
 
+    # try to borrow key, leaf node level
     def borrowKey(self, path, popped):
         leafNode = path[-1]
         oldMinInLeaf = popped
@@ -278,6 +278,7 @@ class BPlusTree:
         # we did not manage to borrow from our siblings as a leaf. we now need to do merging.
         return False
     
+    # merges leaf node
     def mergeLeaf(self, path, popped):
         leaf = path[-1]
         parent = path[-2]
@@ -322,8 +323,109 @@ class BPlusTree:
             # self.updateInternalNodes() don't need to do so as it's handled by delete()
     
         return removedKey, removedChild, mergedNode
+    
+    def fixInternal(self, path, removedKey):
+        # if cur node is root, either assign a new root or 
+        # we don't have to do anything to it if there is at least one key
+        if path[-1] == self.root:
+            if len(path[-1].keys) == 0:
+                self.root = self.root.children[0]
+            return
         
+        if self.borrowKeyInternal(path, removedKey):
+            return
+        rKey, rChild, mergedNode = self.mergeInternal(path, removedKey)
+        parent = path[-2]
+        if len(parent.keys) < MIN_INTERNAL:
+            self.fixInternal(path[:-1], rKey)
 
+    def borrowKeyInternal(self, path, removedKey):
+        curNode = path[-1]
+        parent = path[-2]
+        oldMinInNode = removedKey
+        if curNode.keys and curNode.keys[0] < oldMinInNode:
+            oldMinInNode = curNode.keys[0]
+        
+        # finding the index of curNode in parent.children
+        i = bisect_right(parent.keys, oldMinInNode)
+        
+        # define left and right siblings (curNode is parent.children[i])
+        leftSibling = parent.children[i-1] if i - 1 >= 0 else None
+        rightSibling = parent.children[i+1] if i + 1 < len(parent.children) else None
+
+        # try to borrow from leftSibling if possible
+        if leftSibling and len(leftSibling.keys) > MIN_INTERNAL:
+            # borrow from leftSibling
+            curNode.keys.insert(0, leftSibling.keys.pop())
+            curNode.children.insert(0, leftSibling.children.pop())
+
+            # now we need to reassign parent.keys[index_to_curNode] to smallest_in_subtree(curNode)
+            # and curNode.keys[0] note that curNode.keys[0] is what leftSibling.keys[-1] used to be, 
+            # but we need to change this value to the smallest_in_subtree(curNode.children[1])
+
+            i = bisect_right(parent.keys, curNode.children[1].key[0])
+            # change the key used to index curNode in parent
+            parent.keys[i-1] = self.smallestInSubtree(curNode)
+            # change the key used to index curNode.children[1] in curNode
+            curNode.keys[0] = self.smallestInSubtree(curNode.children[1])
+            return True
+        
+        # try to borrow from rightSibling if possible, since we couldn't from leftSibling
+        if rightSibling and len(rightSibling.keys) > MIN_INTERNAL:
+            # borrow from rightSibling
+            curNode.keys.append(rightSibling.keys.pop(0))
+            curNode.children.append(rightSibling.children.pop(0))
+
+            # change the key used to index rightSibling in parent
+            i = bisect_right(parent.keys, curNode.keys[-1])
+            parent.keys[i-1] = self.smallestInSubtree(rightSibling)
+            # change the key used to index curNode.children[-1] in curNode
+            curNode.keys[-1] = self.smallestInSubtree(curNode.children[-1])
+            return True
+        # we did not manage to borrow key as an internal node. we need to merge internal nodes.
+        return False
+    
+    def smallestInSubtree(self, node):
+        while not node.is_leaf:
+            node = node.children[0]
+        return node.keys[0]
+    
+    def mergeInternal(self, path, removedKey):
+        curNode = path[-1]
+        parent = path[-2]
+        # the index of curNode in parent.children
+        i = bisect_right(parent.keys, removedKey)
+        # merge left, we have a leftSibling
+        if i > 0:
+            leftSibling = parent.children[i-1]
+            # we delete parent.keys[i-1] which is the key used to find curNode 
+            # since we are merging curNode to the left. we need to append this key to
+            # leftSibling.keys because this key will be used to index curNode.children[0]
+            rKey = parent.keys.pop(i-1)
+            leftSibling.keys.append(rKey)
+            # remove parent.children[i] (this points to curNode, which we are merging)
+            rChild = parent.children.pop(i)
+
+            # merge with leftSibling
+            leftSibling.keys += curNode.keys
+            leftSibling.children += curNode.children
+            mergedNode = leftSibling
+        # merge right, we don't have a leftSibling i.e. i == 0
+        else:
+            rightSibling = parent.children[1]
+            # special case, i == 0. we move parent.keys[0] to rightSibling.keys[0] so we can index
+            # the smallest value in the subtree of rightSibling.children[0]
+            # remove curNode i.e. pop parent.children[i], where i == 0
+            rKey = parent.keys.pop(0)
+            rightSibling.keys.insert(0, rKey)
+            rChild = parent.children.pop(0) # i == 0
+
+            # merge with rightSibling
+            rightSibling.keys = curNode.keys + rightSibling.keys
+            rightSibling.children = curNode.children + rightSibling.children
+            mergedNode = rightSibling
+        return rKey, rChild, mergedNode
+            
 
 class BPlusTreeConstructor:
     def __init__(self):
@@ -344,6 +446,7 @@ class BPlusTreeConstructor:
                 for _ in range(len(curNode.keys) + 1):
                     if not childrenNodes:
                         if i != len(levels) - 1:
+                            print("IF YOU SEE THIS, PLEASE CHECK WHETHER YOUR TREE IS VALID")
                             print(f'LEVEL {i}, NOT ENOUGH CHILDREN')
                         break
                     curNode.children.append(childrenNodes.pop(0))

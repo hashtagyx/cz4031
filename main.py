@@ -11,13 +11,22 @@ db_file.import_file("games.txt")
 
 bplustree = BPlusTree()
 
+toDel = set()
 for block_idx, block in enumerate(db_file.blocks):
     for record_idx, record in enumerate(block.data):
-        # bplustree[record.FG_PCT_home] = [block_idx, record_idx]
+        if record.FG_PCT_home <= 0.35:
+            toDel.add(record.FG_PCT_home)
         bplustree.insert(record.FG_PCT_home, [block_idx, record_idx])
-        # print(block_idx, record_idx, record.FG_PCT_home)
-# bplustree.show()
-        
+print("BEFORE:")
+bplustree.show()
+
+toDel = sorted(list(toDel))
+for i, val in enumerate(toDel):
+    # print(f"DELETE {val}")
+    bplustree.delete(val)
+print("AFTER:")
+bplustree.show()
+print(f"deleted items: {toDel}")
 
 # random_list = random.sample(range(1, 100), 20)
 
@@ -170,18 +179,21 @@ def q4_result():
 # q3_result()
 # q4_result()
 
-constructor = BPlusTreeConstructor()
-# Define the levels of the B+ tree as a list of lists (each list represents a level)
+# constructor = BPlusTreeConstructor()
+# # Define the levels of the B+ tree as a list of lists (each list represents a level)
 
 # levels = [
 #     [[20]],
-#     [[7,17], [25, 35]],
-#     [[1,4], [7,10], [17,19], [20,21], [25,31], [35,36]]
+#     [[7], [25]],
+#     [[1,4], [7,10], [20, 21], [25,31]]
 # ]
 # tree = constructor.construct_tree(levels)
 # print('BEFORE:')
 # tree.show()
 # print('=========================================')
 # print('AFTER:')
-# tree.delete(17)
-# tree.show()
+# toDelete = [32,1,4,7,10,20,21,25,31]
+# for val in toDelete:
+#     print(f"DELETE {val}")
+#     tree.delete(val)
+#     tree.show()
