@@ -169,3 +169,19 @@ def q4_result():
 # q2_result()
 # q3_result()
 # q4_result()
+
+constructor = BPlusTreeConstructor()
+# Define the levels of the B+ tree as a list of lists (each list represents a level)
+
+# levels = [
+#     [[20]],
+#     [[7,17], [25, 35]],
+#     [[1,4], [7,10], [17,19], [20,21], [25,31], [35,36]]
+# ]
+# tree = constructor.construct_tree(levels)
+# print('BEFORE:')
+# tree.show()
+# print('=========================================')
+# print('AFTER:')
+# tree.delete(17)
+# tree.show()
