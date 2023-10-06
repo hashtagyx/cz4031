@@ -77,3 +77,14 @@ class DatabaseFile:
             return None  # Invalid block_index
 
         return self.blocks[block_index]
+    
+    def delete_record(self, block_index, record_index):
+        if block_index < 0 or block_index >= len(self.blocks):
+            print("DELETE RECORD: INVALID BLOCK INDEX")
+            return  # Invalid block_index
+        if record_index < 0 or record_index >= len(self.blocks[block_index].data):
+            print("DELETE RECORD: INVALID RECORD INDEX")
+            return  # Invalid record_index
+        if not self.blocks[block_index]:
+            return
+        self.blocks[block_index].data[record_index] = None

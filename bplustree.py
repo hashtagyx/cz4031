@@ -146,7 +146,19 @@ class BPlusTree:
 
         # Find pointers for all records where key = query key
         leaf_node = self.find(key)
-        index = leaf_node.keys.index(key)
+        if not key2 and key not in leaf_node.keys:
+            print("KEY NOT FOUND IN TREE: {key}")
+            return result, c_idx
+        
+        if key in leaf_node.keys:
+            index = leaf_node.keys.index(key)
+        elif key2 < leaf_node.keys[0]:
+            return result, c_idx
+        # key < leaf_node.keys[0] <= key2
+        else:
+            index = bisect_right(leaf_node.keys, key)
+            # print(leaf_node.keys, key, leaf_node.children, index)
+        # print(self.root.keys)
         result += leaf_node.children[index]
 
         # Range query
@@ -206,11 +218,11 @@ class BPlusTree:
         # remove the key and its child from the leaf node.
         i = leaf.keys.index(key)
         popped = leaf.keys.pop(i)
-        records = leaf.children.pop(i)
+        leaf.children.pop(i)
 
         # if the leaf node is the root, we are done with this deletion
         if self.root == leaf:
-            return records
+            return
         
         # case 1: we can remove the key from the tree directly. update the internal nodes if we deleted a key used in an internal node.
         if len(leaf.keys) >= MIN_LEAF:
@@ -221,18 +233,18 @@ class BPlusTree:
             # print("=======================================")
             # print("CASE 1: AFTER UPDATE INTERNAL NODES")
             # self.show()
-            return records
+            return
         # case 2: we try to borrow a key from a neighbour. if it's successful, we are done
         elif self.borrowKey(path, popped):
             # print("BORROWED SUCCESSFULLY")
-            return records
+            return
         
         rKey, rChild, mergedNode = self.mergeLeaf(path, popped)
         if len(path[-2].keys) < MIN_INTERNAL:
             self.fixInternal(path[:-1], rKey)
         newPath = self.findPath(mergedNode.keys[0])
         self.updateInternalNodes(newPath, popped, mergedNode.keys[0])
-        return records
+        return
 
     # try to borrow key, leaf node level
     def borrowKey(self, path, popped):
