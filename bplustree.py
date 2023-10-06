@@ -51,8 +51,6 @@ class BPlusTreeNode:
 
             return key, self, right
 
-
-
 # Create a data structure for the B+ tree
 class BPlusTree:
     def __init__(self):
@@ -100,7 +98,6 @@ class BPlusTree:
         i = parent.index(key)
         parent.keys.insert(i, key)
         parent.children.insert(i+1, right_child)
-        # parent[key] = children
         
         # recursively split and insert if num keys > N (max keys per node)
         if len(parent.keys) > N:
@@ -113,20 +110,13 @@ class BPlusTree:
         while not node.is_leaf:
             node = node.children[node.index(key)]
         return node
-
     
+    # Prints the tree at each level
     def show(self, node=None, file=None, _prefix="", _last=True):
-        """Prints the keys at each level."""
-        # print('1', type(node))
         if node is None:
             node = self.root
-        # print('2', type(node))
         
-        # print('cur', node) 
         print(_prefix, "`- " if _last else "|- ", node.keys, sep="", file=file)
-        # print('children', node.children)
-        # print('parent', node.parent)
-        # print('==================================================')
         _prefix += "   " if _last else "|  "
 
         if not node.is_leaf:
@@ -134,9 +124,6 @@ class BPlusTree:
             for i, child in enumerate(node.children):
                 _last = (i == len(node.children) - 1)
                 self.show(child, file, _prefix, _last)
-        # else:
-            # print('children', node.children)
-            # print('next', node.next)
 
     def search(self, key, key2=None):
         # Search for a key in the B+ tree and return associated values
@@ -157,8 +144,7 @@ class BPlusTree:
         # key < leaf_node.keys[0] <= key2
         else:
             index = bisect_right(leaf_node.keys, key)
-            # print(leaf_node.keys, key, leaf_node.children, index)
-        # print(self.root.keys)
+
         result += leaf_node.children[index]
 
         # Range query
@@ -183,7 +169,6 @@ class BPlusTree:
                     c_idx += 1
                 else: #Reach end of leaf nodes before upper bound of range query is hit
                     break
-                
 
         return result, c_idx
 
@@ -227,21 +212,20 @@ class BPlusTree:
         # case 1: we can remove the key from the tree directly. update the internal nodes if we deleted a key used in an internal node.
         if len(leaf.keys) >= MIN_LEAF:
             newMinInLeaf = leaf.keys[0]
-            # print("CASE 1: BEFORE UPDATE INTERNAL NODES")
-            # self.show()
             self.updateInternalNodes(path, popped, newMinInLeaf)
-            # print("=======================================")
-            # print("CASE 1: AFTER UPDATE INTERNAL NODES")
-            # self.show()
             return
         # case 2: we try to borrow a key from a neighbour. if it's successful, we are done
         elif self.borrowKey(path, popped):
-            # print("BORROWED SUCCESSFULLY")
             return
         
+        # case 3: merge with a neighbour
         rKey, rChild, mergedNode = self.mergeLeaf(path, popped)
+
+        # fix our parent node if needed
         if len(path[-2].keys) < MIN_INTERNAL:
             self.fixInternal(path[:-1], rKey)
+        
+        # update internal nodes' key values
         newPath = self.findPath(mergedNode.keys[0])
         self.updateInternalNodes(newPath, popped, mergedNode.keys[0])
         return
@@ -332,10 +316,10 @@ class BPlusTree:
             removedKey = parent.keys.pop(0)
             removedChild = parent.children.pop(0)
             mergedNode = rightSibling
-            # self.updateInternalNodes() don't need to do so as it's handled by delete()
     
         return removedKey, removedChild, mergedNode
     
+    # fix this internal node at path[-1] (it has too few keys)
     def fixInternal(self, path, removedKey):
         # if cur node is root, either assign a new root or 
         # we don't have to do anything to it if there is at least one key
@@ -351,6 +335,7 @@ class BPlusTree:
         if len(parent.keys) < MIN_INTERNAL:
             self.fixInternal(path[:-1], rKey)
 
+    # attempt to borrow key from neighbouring internal node
     def borrowKeyInternal(self, path, removedKey):
         curNode = path[-1]
         parent = path[-2]
@@ -397,11 +382,13 @@ class BPlusTree:
         # we did not manage to borrow key as an internal node. we need to merge internal nodes.
         return False
     
+    # return the smallest key in node's subtree
     def smallestInSubtree(self, node):
         while not node.is_leaf:
             node = node.children[0]
         return node.keys[0]
     
+    # merge internal node with a neighbour
     def mergeInternal(self, path, removedKey):
         curNode = path[-1]
         parent = path[-2]
@@ -437,8 +424,8 @@ class BPlusTree:
             rightSibling.children = curNode.children + rightSibling.children
             mergedNode = rightSibling
         return rKey, rChild, mergedNode
-            
 
+# constructor class to help us create B+ trees easily for testing purposes (see testcases.py for examples)
 class BPlusTreeConstructor:
     def __init__(self):
         self.tree = BPlusTree()
