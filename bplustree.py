@@ -206,11 +206,11 @@ class BPlusTree:
         # remove the key and its child from the leaf node.
         i = leaf.keys.index(key)
         popped = leaf.keys.pop(i)
-        leaf.children.pop(i)
+        records = leaf.children.pop(i)
 
         # if the leaf node is the root, we are done with this deletion
         if self.root == leaf:
-            return
+            return records
         
         # case 1: we can remove the key from the tree directly. update the internal nodes if we deleted a key used in an internal node.
         if len(leaf.keys) >= MIN_LEAF:
@@ -221,18 +221,18 @@ class BPlusTree:
             # print("=======================================")
             # print("CASE 1: AFTER UPDATE INTERNAL NODES")
             # self.show()
-            return
+            return records
         # case 2: we try to borrow a key from a neighbour. if it's successful, we are done
         elif self.borrowKey(path, popped):
             # print("BORROWED SUCCESSFULLY")
-            return
+            return records
         
         rKey, rChild, mergedNode = self.mergeLeaf(path, popped)
         if len(path[-2].keys) < MIN_INTERNAL:
             self.fixInternal(path[:-1], rKey)
         newPath = self.findPath(mergedNode.keys[0])
         self.updateInternalNodes(newPath, popped, mergedNode.keys[0])
-        return
+        return records
 
     # try to borrow key, leaf node level
     def borrowKey(self, path, popped):

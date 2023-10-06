@@ -9,24 +9,25 @@ import timeit
 db_file = DatabaseFile()
 db_file.import_file("games.txt")
 
-bplustree = BPlusTree()
+bplustree = BPlusTree() # initialize b+ tree index
+toDel = set() # initialize list of keys to delete for Q5
 
-toDel = set()
 for block_idx, block in enumerate(db_file.blocks):
     for record_idx, record in enumerate(block.data):
         if record.FG_PCT_home <= 0.35:
             toDel.add(record.FG_PCT_home)
         bplustree.insert(record.FG_PCT_home, [block_idx, record_idx])
-print("BEFORE:")
-bplustree.show()
+
+# print("BEFORE:")
+# bplustree.show()
 
 toDel = sorted(list(toDel))
-for i, val in enumerate(toDel):
-    # print(f"DELETE {val}")
-    bplustree.delete(val)
-print("AFTER:")
-bplustree.show()
-print(f"deleted items: {toDel}")
+# for i, val in enumerate(toDel):
+#     # print(f"DELETE {val}")
+#     bplustree.delete(val)
+# print("AFTER:")
+# bplustree.show()
+# print(f"deleted items: {toDel}")
 
 # random_list = random.sample(range(1, 100), 20)
 
@@ -113,14 +114,15 @@ def q3_result():
         sum_fg3_pct_home += rcd.FG3_PCT_home
         results.append(rcd.serialize())
 
-    print('Query Results:', '\n'.join(results)) #uncomment to print
     print(f'No. Index Nodes Accessed: {numlevels+c_idx}')
     print(f'No. Datablocks Accessed (Index): {len(numblocks)}')
     print(f'Avg. FG3_PCT_home: {sum_fg3_pct_home/len(records):.2f}')
     print(f'Index Query Runtime: {elapsed/1000:.5f}s\n')
 
     print(f'No. Datablocks Accessed (Brute Force): {len(db_file.blocks)}') # must access all blocks
-    print(f'Brute Force Runtime: {elapsed_bf/1000:.5f}s')
+    print(f'Brute Force Runtime: {elapsed_bf/1000:.5f}s\n')
+
+    print('Query Results:', '\n'.join(results)) #uncomment to print
 
 
 # Q4 range query on index
@@ -161,23 +163,81 @@ def q4_result():
         sum_fg3_pct_home += rcd.FG3_PCT_home
         results.append(rcd.serialize())
     
-    print('Query Results:', '\n'.join(results)) #uncomment to print
     print(f'No. Index Nodes Accessed: {numlevels+c_idx}')
     print(f'No. Datablocks Accessed (Index): {len(numblocks)}')
     print(f'Avg. FG3_PCT_home: {sum_fg3_pct_home/len(records):.2f}')
     print(f'Index Query Runtime: {elapsed/1000:.5f}s\n')
 
     print(f'No. Datablocks Accessed (Brute Force): {len(db_file.blocks)}') # must access all blocks
-    print(f'Brute Force Runtime: {elapsed_bf/1000:.5f}s')
+    print(f'Brute Force Runtime: {elapsed_bf/1000:.5f}s\n')
+
+    print('Query Results:', '\n'.join(results)) #uncomment to print
 
 
 # Q5 range deletion
+def q5_bruteforce(key=0.35):    
+    for blk in db_file.blocks:
+        for i in range(len(blk.data)):
+            if blk.data[i].FG_PCT_home<=key:
+                db_file.num_records-=1
+                blk.data[i]=None
 
+def q5_indexdel(key=0.35):
+    records = []
+    for i, val in enumerate(toDel):
+        records += bplustree.delete(val)
+    for b_id, r_id in records:
+        blk = db_file.read_block(b_id)
+        blk.data[r_id] = None
+
+def q5_result_1():
+    print("################### EXPERIMENT 5: INDEX DELETION ####################")
+    timer1 = timeit.Timer(lambda:q5_indexdel())
+    elapsed = timer1.timeit(1) # Index deletion runtime
+    
+    print("Updated Tree:")
+    bplustree.show()
+
+    # calculate number of levels in updated tree
+    numlevels = 1
+    node = bplustree.root
+    while not node.is_leaf:
+        node = node.children[0]
+        numlevels += 1
+
+    # calculate number of nodes in updated tree
+    numnode = 0
+    bfs_q = [bplustree.root]
+    while bfs_q:
+        node = bfs_q.pop(0)
+        numnode += 1
+        if not node.is_leaf:
+            bfs_q += node.children
+
+    print(f"No. Nodes of Updated Tree: {numnode}")
+    print(f"No. Levels of Updated Tree: {numlevels}")
+    print(f"Content of Root Node: {bplustree.root.keys}")
+    print(f"Index Deletion Runtime: {elapsed:.5f}s\n")
+
+
+def q5_result_2():
+    print("################### EXPERIMENT 5: BRUTE FORCE DELETION ####################")
+    timer2 = timeit.Timer(lambda:q5_bruteforce())
+    elapsed_bf = timer2.timeit(1) # Brute force deletion runtime
+    
+    print(f"No. Data Blocks Accessed (Brute Force): {len(db_file.blocks)}")
+    print(f"Brute Force Deletion Runtime: {elapsed_bf:.5f}s")
+
+     
 ################################# RUN TEST #################################
 # q1_result()
 # q2_result()
 # q3_result()
 # q4_result()
+
+# only one of Q5 can be run at a time
+# q5_result_1()
+# q5_result_2()
 
 # constructor = BPlusTreeConstructor()
 # # Define the levels of the B+ tree as a list of lists (each list represents a level)
