@@ -17,3 +17,6 @@ To use this B+ tree implementation, follow the steps below:
 Run the main script to run the test cases provided:
 ```sh
 python main.py
+```
+Implemented by:
+Ada Lum, Chua Yong Xuan, Daniel Yang, Paing Min Htet
