@@ -12,7 +12,7 @@ To use this B+ tree implementation, follow the steps below:
 
 3. Navigate to the project directory using the `cd` command:
 
-   > cd path/to/project-directory
+   > cd cz4031
 
 Run the main script to run the test cases provided:
 ```sh
