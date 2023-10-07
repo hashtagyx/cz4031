@@ -112,18 +112,27 @@ class BPlusTree:
         return node
     
     # Prints the tree at each level
-    def show(self, node=None, file=None, _prefix="", _last=True):
-        if node is None:
+    def show(self, node=None, prefix=""):
+        if not node:
             node = self.root
+
+        if node.parent is None or node.parent.children[-1] == node:
+            last = True
+        else:
+            last = False
         
-        print(_prefix, "`- " if _last else "|- ", node.keys, sep="", file=file)
-        _prefix += "   " if _last else "|  "
+        if last:
+            stalk = "`- "
+        else:
+            stalk = "|- "
+
+        print(prefix, stalk, node.keys, sep="")
+        prefix += "   " if last else "|  "
 
         if not node.is_leaf:
             # Recursively print the key of child nodes (if these exist).
-            for i, child in enumerate(node.children):
-                _last = (i == len(node.children) - 1)
-                self.show(child, file, _prefix, _last)
+            for child in node.children:
+                self.show(child, prefix)
 
     def search(self, key, key2=None):
         # Search for a key in the B+ tree and return associated values
@@ -356,6 +365,7 @@ class BPlusTree:
             # borrow from leftSibling
             curNode.keys.insert(0, leftSibling.keys.pop())
             curNode.children.insert(0, leftSibling.children.pop())
+            curNode.children[0].parent = curNode
 
             # now we need to reassign parent.keys[index_to_curNode] to smallest_in_subtree(curNode)
             # and curNode.keys[0] note that curNode.keys[0] is what leftSibling.keys[-1] used to be, 
@@ -373,6 +383,7 @@ class BPlusTree:
             # borrow from rightSibling
             curNode.keys.append(rightSibling.keys.pop(0))
             curNode.children.append(rightSibling.children.pop(0))
+            curNode.children[-1].parent = curNode
 
             # change the key used to index rightSibling in parent
             i = bisect_right(parent.keys, curNode.keys[-1])
@@ -409,6 +420,8 @@ class BPlusTree:
             # merge with leftSibling
             leftSibling.keys += curNode.keys
             leftSibling.children += curNode.children
+            for child in curNode.children:
+                child.parent = leftSibling
             mergedNode = leftSibling
         # merge right, we don't have a leftSibling i.e. i == 0
         else:
@@ -423,6 +436,8 @@ class BPlusTree:
             # merge with rightSibling
             rightSibling.keys = curNode.keys + rightSibling.keys
             rightSibling.children = curNode.children + rightSibling.children
+            for child in curNode.children:
+                child.parent = rightSibling
             mergedNode = rightSibling
         return rKey, mergedNode
 
@@ -449,7 +464,9 @@ class BPlusTreeConstructor:
                             print("IF YOU SEE THIS, PLEASE CHECK WHETHER YOUR TREE IS VALID")
                             print(f'LEVEL {i}, NOT ENOUGH CHILDREN')
                         break
-                    curNode.children.append(childrenNodes.pop(0))
+                    curChild = childrenNodes.pop(0)
+                    curNode.children.append(curChild)
+                    curChild.parent = curNode
                 curNodes.append(curNode)
             
             # add dummy children and next pointer since this is leaf level

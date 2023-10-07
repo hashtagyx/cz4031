@@ -212,3 +212,4 @@ q2_result()
 q3_result()
 q4_result()
 q5_result()
+# bplustree.show() # uncomment to print
