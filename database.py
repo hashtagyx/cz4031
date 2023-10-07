@@ -33,8 +33,7 @@ class DatabaseFile:
     def __init__(self):
         self.blocks = []  # List to store blocks
         self.num_records = 0  # Total number of records
-        self.current_block = None  # Current block for writing
-    
+
     def import_file(self, file_path):
         with open(file_path, "r", encoding="utf8") as games_file:
             games_reader = csv.DictReader(games_file, delimiter="\t")
@@ -87,4 +86,5 @@ class DatabaseFile:
             return  # Invalid record_index
         if not self.blocks[block_index]:
             return
+        self.num_records -= 1
         self.blocks[block_index].data[record_index] = None

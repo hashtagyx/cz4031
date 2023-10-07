@@ -199,12 +199,12 @@ def q5_result():
     print(f'No. Nodes of Updated Tree: {numnode}')
     print(f'No. Levels of Updated Tree: {numlevels}')
     print(f'Content of Root Node: {bplustree.root.keys}')
-    print(f'Index Deletion Runtime: {elapsed:.10f}ms\n')
+    print(f'Index Deletion Runtime: {elapsed:.5f}ms\n')
     
     timer2 = timeit.Timer(lambda:q5_bruteforce())
     elapsed_bf = timer2.timeit(1) # Brute force range query runtime
     print(f'No. Datablocks Accessed (Brute Force): {len(db_file.blocks)}') # must access all blocks
-    print(f'Brute Force Runtime: {elapsed_bf:.10f}ms')
+    print(f'Brute Force Runtime: {elapsed_bf:.5f}ms')
 
 ################################# RUN TEST #################################
 q1_result()
