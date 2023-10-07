@@ -170,13 +170,6 @@ def q5_delete_records_using_tree(key = 0.35):
     for key_to_del in keys_to_delete:
         bplustree.delete(key_to_del)
 
-def q5_get_num_of_blocks(key = 0.35):
-    records, _ = bplustree.search(0, key)
-    unique_blocks = set()
-    for b_id, r_id in records:
-        unique_blocks.add(b_id)
-    return len(unique_blocks)
-
 def q5_bruteforce(key = 0.35):
     for block_idx, block in enumerate(db_file_q5_brute_force.blocks):
         for record_idx, record in enumerate(block.data):

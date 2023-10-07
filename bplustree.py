@@ -127,7 +127,7 @@ class BPlusTree:
 
     def search(self, key, key2=None):
         # Search for a key in the B+ tree and return associated values
-        # Implement search algorithm``
+        # Implement search algorithm
         c_idx = 0 # Additional no. index nodes accessed on top of tree height
         result = [] # List of record pointers
 
@@ -173,7 +173,7 @@ class BPlusTree:
         return result, c_idx
 
     # returns the path of nodes travelled to reach the leaf node which should contain this key
-    def findPath(self, key):
+    def find_path(self, key):
         path = []
         node = self.root
         while not node.is_leaf:
@@ -184,7 +184,7 @@ class BPlusTree:
     
     # this function replaces the popped value with the newMinInLeaf 
     # if the popped value exists along the path to the leaf
-    def updateInternalNodes(self, path, popped, newMinInLeaf):
+    def update_internal_nodes(self, path, popped, newMinInLeaf):
         while path:
             curNode = path.pop()
             if popped in curNode.keys:
@@ -195,7 +195,7 @@ class BPlusTree:
     def delete(self, key):
         # Delete the key in the B+ tree and the array that the last layer points to
         leaf = self.find(key)
-        path = self.findPath(key)
+        path = self.find_path(key)
         if key not in leaf.keys:
             print(f"INVALID KEY {key}, NOT IN LEAF.KEYS {leaf.keys}")
             return
@@ -212,29 +212,29 @@ class BPlusTree:
         # case 1: we can remove the key from the tree directly. update the internal nodes if we deleted a key used in an internal node.
         if len(leaf.keys) >= MIN_LEAF:
             newMinInLeaf = leaf.keys[0]
-            self.updateInternalNodes(path, popped, newMinInLeaf)
+            self.update_internal_nodes(path, popped, newMinInLeaf)
             return
         # case 2: we try to borrow a key from a neighbour. if it's successful, we are done
-        elif self.borrowKey(path, popped):
+        elif self.borrow_key(path, popped):
             return
         
         # case 3: merge with a neighbour
-        rKey, rChild, mergedNode = self.mergeLeaf(path, popped)
+        rKey, mergedNode = self.merge_leaf(path, popped)
 
         # fix our parent node if needed
         if len(path[-2].keys) < MIN_INTERNAL:
-            self.fixInternal(path[:-1], rKey)
+            self.fix_internal(path[:-1], rKey)
         
         # update internal nodes' key values
-        newPath = self.findPath(mergedNode.keys[0])
-        self.updateInternalNodes(newPath, popped, mergedNode.keys[0])
+        newPath = self.find_path(mergedNode.keys[0])
+        self.update_internal_nodes(newPath, popped, mergedNode.keys[0])
         return
 
     # try to borrow key, leaf node level
-    def borrowKey(self, path, popped):
+    def borrow_key(self, path, popped):
         leafNode = path[-1]
         oldMinInLeaf = popped
-        # finding the old minimum value in the leaf node so that we can updateInternalNodes later
+        # finding the old minimum value in the leaf node so that we can update_internal_nodes later
         if leafNode.keys and leafNode.keys[0] < popped:
             oldMinInLeaf = leafNode.keys[0]
 
@@ -255,7 +255,7 @@ class BPlusTree:
             leafNode.keys.insert(0, leftSibling.keys.pop())
             leafNode.children.insert(0, leftSibling.children.pop())
             # update the internal nodes if required. old value = oldMinInLeaf, new value = borrowed key from leftSibling
-            self.updateInternalNodes(path[:-1], oldMinInLeaf, leafNode.keys[0])
+            self.update_internal_nodes(path[:-1], oldMinInLeaf, leafNode.keys[0])
             return True
         
         # try to borrow from right sibling since we can't from left sibling
@@ -263,19 +263,19 @@ class BPlusTree:
             leafNode.keys.append(rightSibling.keys.pop(0))
             leafNode.children.append(rightSibling.children.pop(0))
             # update our rightSibling's parent since we borrowed their previous smallest key
-            self.updateInternalNodes(path[:-1], leafNode.keys[-1], rightSibling.keys[0])
+            self.update_internal_nodes(path[:-1], leafNode.keys[-1], rightSibling.keys[0])
             # update our leafNode's parent/internal node along path if we deleted the oldMinInLeaf
             # note: oldMinInLeaf could still be in the leaf node. however, it won't be if oldMinInLeaf == popped.
             # this function replaces the second argument with the third argument along the path,
             # however it does nothing if the second argument isn't along the path
-            self.updateInternalNodes(path[:-1], oldMinInLeaf, leafNode.keys[0])
+            self.update_internal_nodes(path[:-1], oldMinInLeaf, leafNode.keys[0])
             return True
         
         # we did not manage to borrow from our siblings as a leaf. we now need to do merging.
         return False
     
     # merges leaf node
-    def mergeLeaf(self, path, popped):
+    def merge_leaf(self, path, popped):
         leaf = path[-1]
         parent = path[-2]
         # finding the old minimum value in the leaf
@@ -301,7 +301,7 @@ class BPlusTree:
 
             # removing the key and child in our parent node now that the node has been merged
             removedKey = parent.keys.pop(i)
-            removedChild = parent.children.pop(i+1)
+            parent.children.pop(i+1)
             mergedNode = leftSibling
         # we need to merge right, since leaf is the zeroth child
         else:
@@ -314,29 +314,30 @@ class BPlusTree:
             rightSibling.keys = leaf.keys + rightSibling.keys
             rightSibling.children = leaf.children + rightSibling.children
             removedKey = parent.keys.pop(0)
-            removedChild = parent.children.pop(0)
+            parent.children.pop(0)
             mergedNode = rightSibling
     
-        return removedKey, removedChild, mergedNode
+        return removedKey, mergedNode
     
     # fix this internal node at path[-1] (it has too few keys)
-    def fixInternal(self, path, removedKey):
+    def fix_internal(self, path, removedKey):
         # if cur node is root, either assign a new root or 
         # we don't have to do anything to it if there is at least one key
         if path[-1] == self.root:
             if len(path[-1].keys) == 0:
                 self.root = self.root.children[0]
+                self.root.parent = None
             return
         
-        if self.borrowKeyInternal(path, removedKey):
+        if self.borrow_key_internal(path, removedKey):
             return
-        rKey, rChild, mergedNode = self.mergeInternal(path, removedKey)
+        rKey, mergedNode = self.merge_internal(path, removedKey)
         parent = path[-2]
         if len(parent.keys) < MIN_INTERNAL:
-            self.fixInternal(path[:-1], rKey)
+            self.fix_internal(path[:-1], rKey)
 
     # attempt to borrow key from neighbouring internal node
-    def borrowKeyInternal(self, path, removedKey):
+    def borrow_key_internal(self, path, removedKey):
         curNode = path[-1]
         parent = path[-2]
         oldMinInNode = removedKey
@@ -362,9 +363,9 @@ class BPlusTree:
 
             i = bisect_right(parent.keys, curNode.children[1].keys[0])
             # change the key used to index curNode in parent
-            parent.keys[i-1] = self.smallestInSubtree(curNode)
+            parent.keys[i-1] = self.smallest_in_subtree(curNode)
             # change the key used to index curNode.children[1] in curNode
-            curNode.keys[0] = self.smallestInSubtree(curNode.children[1])
+            curNode.keys[0] = self.smallest_in_subtree(curNode.children[1])
             return True
         
         # try to borrow from rightSibling if possible, since we couldn't from leftSibling
@@ -375,21 +376,21 @@ class BPlusTree:
 
             # change the key used to index rightSibling in parent
             i = bisect_right(parent.keys, curNode.keys[-1])
-            parent.keys[i-1] = self.smallestInSubtree(rightSibling)
+            parent.keys[i-1] = self.smallest_in_subtree(rightSibling)
             # change the key used to index curNode.children[-1] in curNode
-            curNode.keys[-1] = self.smallestInSubtree(curNode.children[-1])
+            curNode.keys[-1] = self.smallest_in_subtree(curNode.children[-1])
             return True
         # we did not manage to borrow key as an internal node. we need to merge internal nodes.
         return False
     
     # return the smallest key in node's subtree
-    def smallestInSubtree(self, node):
+    def smallest_in_subtree(self, node):
         while not node.is_leaf:
             node = node.children[0]
         return node.keys[0]
     
     # merge internal node with a neighbour
-    def mergeInternal(self, path, removedKey):
+    def merge_internal(self, path, removedKey):
         curNode = path[-1]
         parent = path[-2]
         # the index of curNode in parent.children
@@ -403,7 +404,7 @@ class BPlusTree:
             rKey = parent.keys.pop(i-1)
             leftSibling.keys.append(rKey)
             # remove parent.children[i] (this points to curNode, which we are merging)
-            rChild = parent.children.pop(i)
+            parent.children.pop(i)
 
             # merge with leftSibling
             leftSibling.keys += curNode.keys
@@ -417,13 +418,13 @@ class BPlusTree:
             # remove curNode i.e. pop parent.children[i], where i == 0
             rKey = parent.keys.pop(0)
             rightSibling.keys.insert(0, rKey)
-            rChild = parent.children.pop(0) # i == 0
+            parent.children.pop(0) # i == 0
 
             # merge with rightSibling
             rightSibling.keys = curNode.keys + rightSibling.keys
             rightSibling.children = curNode.children + rightSibling.children
             mergedNode = rightSibling
-        return rKey, rChild, mergedNode
+        return rKey, mergedNode
 
 # constructor class to help us create B+ trees easily for testing purposes (see testcases.py for examples)
 class BPlusTreeConstructor:
